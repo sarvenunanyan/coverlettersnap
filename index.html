@@ -1,7 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) placeholder - will add Analytics ID later -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z04QX04HVR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Z04QX04HVR');
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoverLetterSnap — Free AI Cover Letter Generator</title>
@@ -584,7 +592,15 @@ function downloadLetter() {
   const content = document.getElementById('letter-display').innerHTML;
   const name = lastFormData ? lastFormData.fullName : 'Cover Letter';
   const printWin = window.open('', '_blank');
-  const html = '<!DOCTYPE html><html><head><title>' + name + ' — Cover Letter</title><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"><style>body{margin:40px;font-family:\'DM Sans\',sans-serif;font-size:11pt;line-height:1.7;color:#111;}p{margin-bottom:10px;}@media print{@page{margin:2cm}}</style></head><body onload="window.print()">' + content + '</body></html>';
+  const html = '<!DOCTYPE html><html><head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Z04QX04HVR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Z04QX04HVR');
+</script><title>' + name + ' — Cover Letter</title><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"><style>body{margin:40px;font-family:\'DM Sans\',sans-serif;font-size:11pt;line-height:1.7;color:#111;}p{margin-bottom:10px;}@media print{@page{margin:2cm}}</style></head><body onload="window.print()">' + content + '</body></html>';
   printWin.document.write(html);
   printWin.document.close();
 }

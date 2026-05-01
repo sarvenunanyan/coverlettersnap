@@ -433,6 +433,12 @@ const loadingMessages = [
   'Almost ready...'
 ];
 
+function showError(msg) {
+  const ph = document.getElementById('output-placeholder');
+  ph.style.display = 'flex';
+  ph.innerHTML = '<div class="ph-icon">⚠️</div><div class="ph-text">' + msg + '</div><div class="ph-sub">Check your connection and try again.</div>';
+}
+
 async function generateLetter(e) {
   if(e) e.preventDefault();
   const fname = document.getElementById('cl-fname').value.trim();
@@ -502,12 +508,22 @@ ${jd ? 'Job description highlights: ' + jd : ''}`;
         messages: [{role:'user', content: userMsg}]
       })
     });
+
     const d = await r.json();
+
+    if (!r.ok || d.error) {
+      showError(d.error || 'API error — please try again.');
+      clearInterval(msgTimer);
+      loadEl.classList.remove('show');
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1.5l2 5 5 .8-3.5 3.5 1 5L9 13.5l-4.5 2.3 1-5L2 7.3l5-.8L9 1.5z" fill="#0c0c0e"/></svg> Generate My Cover Letter';
+      return;
+    }
+
     generatedText = d.content[0].text;
     showLetter(generatedText, fullName, email, phone, jobTitle, company);
-  } catch(e) {
-    document.getElementById('output-placeholder').style.display = 'flex';
-    document.getElementById('output-placeholder').innerHTML = '<div class="ph-icon">⚠️</div><div class="ph-text">Connection error — please try again.</div>';
+  } catch(err) {
+    showError('Connection error — ' + (err.message || 'please try again.'));
   }
 
   clearInterval(msgTimer);
@@ -568,11 +584,19 @@ async function regenerate(modifier) {
         messages: [{role:'user', content:'Rewrite this cover letter to be ' + modifier + ':\n\n' + generatedText}]
       })
     });
+
     const d = await r.json();
-    const {fullName, email, phone, jobTitle, company} = lastFormData;
-    generatedText = d.content[0].text;
-    showLetter(generatedText, fullName, email, phone, jobTitle, company);
-  } catch(e) {}
+
+    if (!r.ok || d.error) {
+      showError(d.error || 'API error — please try again.');
+    } else {
+      const {fullName, email, phone, jobTitle, company} = lastFormData;
+      generatedText = d.content[0].text;
+      showLetter(generatedText, fullName, email, phone, jobTitle, company);
+    }
+  } catch(err) {
+    showError('Connection error — ' + (err.message || 'please try again.'));
+  }
 
   document.getElementById('loading-state').classList.remove('show');
   btn.disabled = false;

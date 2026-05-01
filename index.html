@@ -525,7 +525,7 @@ ${jd ? 'Job description highlights: ' + jd : ''}`;
     }
 
     if (!r.ok || d.error) {
-      showError(d.error || 'API error — please try again.');
+      showError(typeof d.error === 'string' ? d.error : JSON.stringify(d.error));
       clearInterval(msgTimer);
       loadEl.classList.remove('show');
       btn.disabled = false;
@@ -601,7 +601,7 @@ async function regenerate(modifier) {
     const d = await r.json();
 
     if (!r.ok || d.error) {
-      showError(d.error || 'API error — please try again.');
+      showError(typeof d.error === 'string' ? d.error : JSON.stringify(d.error));
     } else {
       const {fullName, email, phone, jobTitle, company} = lastFormData;
       generatedText = d.content[0].text;

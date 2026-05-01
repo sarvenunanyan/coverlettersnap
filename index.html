@@ -559,7 +559,7 @@ function showLetter(text, name, email, phone, jobTitle, company) {
 
   paragraphs.forEach(p => {
     if (p.startsWith('Yours sincerely') || p.startsWith('Yours faithfully') || p.startsWith('Kind regards')) {
-      html += '<div style="margin-top:20px"><div>' + p + '</div><div style="margin-top:8px;font-weight:600">' + name + '</div></div>';
+      html += '<div style="margin-top:20px"><div>' + p + '</div></div>';
     } else {
       html += '<p>' + p + '</p>';
     }

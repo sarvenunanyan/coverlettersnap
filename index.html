@@ -494,12 +494,10 @@ Tone: ${selectedTone}
 ${jd ? 'Job description highlights: ' + jd : ''}`;
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
         system: systemPrompt,
         messages: [{role:'user', content: userMsg}]
       })
@@ -562,12 +560,10 @@ async function regenerate(modifier) {
   document.getElementById('output-actions').style.display = 'none';
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
         system: 'You are an expert cover letter writer. Rewrite the cover letter with the requested modification. Keep all the personal details and job information the same. Output ONLY the cover letter body text, same format as before.',
         messages: [{role:'user', content:'Rewrite this cover letter to be ' + modifier + ':\n\n' + generatedText}]
       })

@@ -491,8 +491,7 @@ function fetchJobUrl() {
       btn.disabled = false; btn.textContent = 'Extract →';
       return;
     }
-    var raw = d.content[0].text.trim().replace(/```json[
-]?/g,'').replace(/```[
+    var raw = d.content[0].text.trim().replace(/```json/g,'').replace(/```/g,'').trim();
 ]?/g,'').trim();
     var data;
     try { data = JSON.parse(raw); } catch(e) {

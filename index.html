@@ -317,6 +317,16 @@ footer a:hover{color:var(--gold);}
             <option>Other</option>
           </select>
         </div>
+        <!-- Job URL Import -->
+        <div style="background:rgba(245,200,66,0.04);border:1px solid var(--gold-dim);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:0.68rem;font-weight:600;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">✦ Import from Job URL</div>
+          <div style="display:flex;gap:8px;">
+            <input class="field-input" id="cl-job-url" placeholder="Paste job listing URL (LinkedIn, Indeed, etc.)" style="flex:1;margin:0;">
+            <button type="button" onclick="fetchJobUrl()" id="fetch-url-btn" style="background:var(--gold);color:var(--bg);border:none;padding:10px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;">Extract →</button>
+          </div>
+          <div id="url-status" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;display:none;"></div>
+        </div>
+
         <div class="field"><label class="field-label">Job Description Highlights (optional but recommended)</label><textarea class="field-input" id="cl-jd" placeholder="Paste key requirements from the job ad... e.g. 'Leading design sprints, working with cross-functional teams, data-driven design decisions...'" rows="3"></textarea></div>
 
         <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin:20px 0 12px;">Tone</div>
@@ -434,6 +444,98 @@ const loadingMessages = [
   'Polishing your cover letter...',
   'Almost ready...'
 ];
+
+function fetchJobUrl() {
+  var url = document.getElementById('cl-job-url').value.trim();
+  var statusEl = document.getElementById('url-status');
+  var btn = document.getElementById('fetch-url-btn');
+
+  if (!url) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Please paste a job URL first.';
+    return;
+  }
+
+  if (!url.startsWith('http')) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Please enter a valid URL starting with http...';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Reading...';
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--text-muted)';
+  statusEl.textContent = 'Fetching job details...';
+
+  fetch('/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      system: 'You are a job listing parser. The user will give you a job URL. Extract the key information and return ONLY valid JSON with no extra text or markdown: {"jobTitle":"","company":"","industry":"","highlights":""}. For highlights, extract the 5-8 most important requirements from the job description as a single paragraph. If you cannot access the URL content, return {"error":"Could not access this URL. Please paste the job description manually."}',
+      messages: [{role: 'user', content: 'Extract job details from this URL: ' + url}]
+    })
+  })
+  .then(function(r) { return r.text().then(function(t) { return {ok: r.ok, text: t}; }); })
+  .then(function(res) {
+    var d;
+    try { d = JSON.parse(res.text); } catch(e) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Server error, please try again.';
+      btn.disabled = false; btn.textContent = 'Extract →';
+      return;
+    }
+    if (!res.ok || d.error) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = typeof d.error === 'string' ? d.error : 'Error, please try again.';
+      btn.disabled = false; btn.textContent = 'Extract →';
+      return;
+    }
+    var raw = d.content[0].text.trim().replace(/```json[
+]?/g,'').replace(/```[
+]?/g,'').trim();
+    var data;
+    try { data = JSON.parse(raw); } catch(e) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Could not parse job details. Please paste the description manually.';
+      btn.disabled = false; btn.textContent = 'Extract →';
+      return;
+    }
+
+    if (data.error) {
+      statusEl.style.color = 'var(--gold)';
+      statusEl.textContent = data.error;
+      btn.disabled = false; btn.textContent = 'Extract →';
+      return;
+    }
+
+    if (data.jobTitle) document.getElementById('cl-job-title').value = data.jobTitle;
+    if (data.company) document.getElementById('cl-company').value = data.company;
+    if (data.industry) {
+      var sel = document.getElementById('cl-industry');
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].text.toLowerCase().includes(data.industry.toLowerCase())) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    if (data.highlights) document.getElementById('cl-jd').value = data.highlights;
+
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = 'Job details extracted successfully!';
+    btn.disabled = false; btn.textContent = 'Extract →';
+
+    setTimeout(function() {
+      statusEl.style.display = 'none';
+    }, 3000);
+  })
+  .catch(function(err) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Connection error. Please paste the job description manually.';
+    btn.disabled = false; btn.textContent = 'Extract →';
+  });
+}
 
 function showError(msg) {
   const ph = document.getElementById('output-placeholder');

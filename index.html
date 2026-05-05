@@ -282,6 +282,28 @@ footer a:hover{color:var(--gold);}
       </div>
       <div class="form-body">
 
+        <!-- LinkedIn Import -->
+        <div style="background:rgba(245,200,66,0.04);border:1px solid var(--gold-dim);border-radius:10px;padding:14px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:0.68rem;font-weight:600;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;">💼 Import from LinkedIn</div>
+            <button type="button" onclick="toggleLinkedInImport()" id="li-toggle-btn" style="background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:4px 12px;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:0.72rem;cursor:pointer;">Show</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">Export your LinkedIn as PDF → paste text → form fills automatically</div>
+          <div id="li-import-area" style="display:none;margin-top:12px;">
+            <div style="background:var(--surface);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;color:var(--text-muted);line-height:1.6;">
+              <strong style="color:var(--text);">How to export LinkedIn as PDF:</strong><br>
+              1. Go to your LinkedIn profile<br>
+              2. Click <strong style="color:var(--text);">"More"</strong> → <strong style="color:var(--text);">"Save to PDF"</strong><br>
+              3. Open the PDF, select all (Ctrl+A), copy and paste below
+            </div>
+            <textarea id="li-profile-text" class="field-input" rows="5" placeholder="Paste your LinkedIn profile text here..."></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <button type="button" onclick="importLinkedInProfile()" id="li-import-btn" style="background:var(--gold);color:var(--bg);border:none;padding:9px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;">💼 Fill Form from LinkedIn</button>
+              <span id="li-import-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
+            </div>
+          </div>
+        </div>
+
         <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;">About You</div>
         <div class="field-row">
           <div class="field"><label class="field-label">First Name</label><input class="field-input" id="cl-fname" placeholder="Alexandra"></div>
@@ -447,6 +469,92 @@ const loadingMessages = [
   'Polishing your cover letter...',
   'Almost ready...'
 ];
+
+function toggleLinkedInImport() {
+  var area = document.getElementById('li-import-area');
+  var btn = document.getElementById('li-toggle-btn');
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    btn.textContent = 'Hide';
+  } else {
+    area.style.display = 'none';
+    btn.textContent = 'Show';
+  }
+}
+
+function importLinkedInProfile() {
+  var text = document.getElementById('li-profile-text').value.trim();
+  var statusEl = document.getElementById('li-import-status');
+  var btn = document.getElementById('li-import-btn');
+
+  if (!text || text.length < 30) {
+    statusEl.style.color = 'var(--text-muted)';
+    statusEl.textContent = 'Please paste your LinkedIn text first.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Reading profile...';
+  statusEl.style.color = 'var(--text-muted)';
+  statusEl.textContent = 'Extracting your details...';
+
+  var systemPrompt = 'You are a LinkedIn profile parser for a cover letter generator. Extract info and return ONLY valid JSON with no markdown: {"firstName":"","lastName":"","currentTitle":"","email":"","phone":"","skills":""}. For skills extract top 5-8 skills as comma separated list. Use empty string if not found.';
+
+  fetch('/api/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      system: systemPrompt,
+      messages: [{role: 'user', content: 'Parse this LinkedIn profile: ' + text}]
+    })
+  })
+  .then(function(r) { return r.text().then(function(t) { return {ok: r.ok, text: t}; }); })
+  .then(function(res) {
+    var d;
+    try { d = JSON.parse(res.text); } catch(e) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Server error, please try again.';
+      btn.disabled = false; btn.textContent = 'Fill Form from LinkedIn';
+      return;
+    }
+    if (!res.ok || d.error) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = typeof d.error === 'string' ? d.error : 'Error, please try again.';
+      btn.disabled = false; btn.textContent = 'Fill Form from LinkedIn';
+      return;
+    }
+    var rawText = d.content[0].text.trim();
+    rawText = rawText.split('```json').join('').split('```').join('').trim();
+    var data;
+    try { data = JSON.parse(rawText); } catch(e) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Could not parse profile, please try again.';
+      btn.disabled = false; btn.textContent = 'Fill Form from LinkedIn';
+      return;
+    }
+
+    if (data.firstName) document.getElementById('cl-fname').value = data.firstName;
+    if (data.lastName) document.getElementById('cl-lname').value = data.lastName;
+    if (data.currentTitle) document.getElementById('cl-current-title').value = data.currentTitle;
+    if (data.email) document.getElementById('cl-email').value = data.email;
+    if (data.phone) document.getElementById('cl-phone').value = data.phone;
+    if (data.skills) document.getElementById('cl-skills').value = data.skills;
+
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = 'Profile imported! Add job details and generate.';
+    btn.disabled = false; btn.textContent = 'Fill Form from LinkedIn';
+    setTimeout(function() {
+      statusEl.textContent = '';
+      document.getElementById('li-import-area').style.display = 'none';
+      document.getElementById('li-toggle-btn').textContent = 'Show';
+    }, 3000);
+  })
+  .catch(function(err) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Connection error, please try again.';
+    btn.disabled = false; btn.textContent = 'Fill Form from LinkedIn';
+  });
+}
 
 function extractJobDetails() {
   var text = document.getElementById('cl-job-full').value.trim();

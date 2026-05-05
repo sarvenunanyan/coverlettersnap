@@ -317,14 +317,17 @@ footer a:hover{color:var(--gold);}
             <option>Other</option>
           </select>
         </div>
-        <!-- Job URL Import -->
+        <!-- Job Description Smart Extract -->
         <div style="background:rgba(245,200,66,0.04);border:1px solid var(--gold-dim);border-radius:10px;padding:14px;margin-bottom:12px;">
-          <div style="font-size:0.68rem;font-weight:600;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">✦ Import from Job URL</div>
-          <div style="display:flex;gap:8px;">
-            <input class="field-input" id="cl-job-url" placeholder="Paste job listing URL (LinkedIn, Indeed, etc.)" style="flex:1;margin:0;">
-            <button type="button" onclick="fetchJobUrl()" id="fetch-url-btn" style="background:var(--gold);color:var(--bg);border:none;padding:10px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;">Extract →</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="font-size:0.68rem;font-weight:600;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;">✦ Smart Job Import</div>
+            <span style="font-size:0.65rem;color:var(--text-muted);">Copy from LinkedIn, Indeed, or any job site</span>
           </div>
-          <div id="url-status" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;display:none;"></div>
+          <textarea id="cl-job-full" class="field-input" rows="4" placeholder="Paste the full job description here — AI will extract the key requirements automatically..."></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <button type="button" onclick="extractJobDetails()" id="extract-btn" style="background:var(--gold);color:var(--bg);border:none;padding:9px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;">✦ Extract Key Details</button>
+            <span id="extract-status" style="font-size:0.75rem;color:var(--text-muted);"></span>
+          </div>
         </div>
 
         <div class="field"><label class="field-label">Job Description Highlights (optional but recommended)</label><textarea class="field-input" id="cl-jd" placeholder="Paste key requirements from the job ad... e.g. 'Leading design sprints, working with cross-functional teams, data-driven design decisions...'" rows="3"></textarea></div>
@@ -445,31 +448,30 @@ const loadingMessages = [
   'Almost ready...'
 ];
 
-function fetchJobUrl() {
-  var url = document.getElementById('cl-job-url').value.trim();
-  var statusEl = document.getElementById('url-status');
-  var btn = document.getElementById('fetch-url-btn');
+function extractJobDetails() {
+  var text = document.getElementById('cl-job-full').value.trim();
+  var statusEl = document.getElementById('extract-status');
+  var btn = document.getElementById('extract-btn');
 
-  if (!url) {
-    statusEl.style.display = 'block';
-    statusEl.textContent = 'Please paste a job URL first.';
+  if (!text || text.length < 50) {
+    statusEl.style.color = 'var(--text-muted)';
+    statusEl.textContent = 'Please paste a job description first.';
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = 'Reading...';
-  statusEl.style.display = 'block';
+  btn.textContent = 'Extracting...';
   statusEl.style.color = 'var(--text-muted)';
-  statusEl.textContent = 'Fetching job details...';
+  statusEl.textContent = 'Reading job description...';
 
-  var systemPrompt = 'You are a job listing parser. Extract key info and return ONLY valid JSON: {"jobTitle":"","company":"","industry":"","highlights":""}. For highlights extract the 5-8 most important requirements as a single paragraph. If you cannot access the URL return {"error":"Could not access this URL. Please paste the job description manually."}';
+  var systemPrompt = 'You are a job listing parser. Extract key info from the job description and return ONLY valid JSON with no markdown: {"jobTitle":"","company":"","industry":"","highlights":""}. For highlights write a concise paragraph with the 5-8 most important requirements. Industry should be one of: Technology, Finance, Healthcare, Marketing, Education, Engineering, Sales, Design, Legal, HR, Consulting, Retail, Other.';
 
   fetch('/api/generate', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       system: systemPrompt,
-      messages: [{role: 'user', content: 'Extract job details from this URL: ' + url}]
+      messages: [{role: 'user', content: 'Extract job details from this description: ' + text}]
     })
   })
   .then(function(r) { return r.text().then(function(t) { return {ok: r.ok, text: t}; }); })
@@ -478,13 +480,13 @@ function fetchJobUrl() {
     try { d = JSON.parse(res.text); } catch(e) {
       statusEl.style.color = 'var(--red)';
       statusEl.textContent = 'Server error, please try again.';
-      btn.disabled = false; btn.textContent = 'Extract ->';
+      btn.disabled = false; btn.textContent = 'Extract Key Details';
       return;
     }
     if (!res.ok || d.error) {
       statusEl.style.color = 'var(--red)';
       statusEl.textContent = typeof d.error === 'string' ? d.error : 'Error, please try again.';
-      btn.disabled = false; btn.textContent = 'Extract ->';
+      btn.disabled = false; btn.textContent = 'Extract Key Details';
       return;
     }
     var rawText = d.content[0].text.trim();
@@ -492,15 +494,8 @@ function fetchJobUrl() {
     var data;
     try { data = JSON.parse(rawText); } catch(e) {
       statusEl.style.color = 'var(--red)';
-      statusEl.textContent = 'Could not parse job details. Please paste the description manually.';
-      btn.disabled = false; btn.textContent = 'Extract ->';
-      return;
-    }
-
-    if (data.error) {
-      statusEl.style.color = 'var(--gold)';
-      statusEl.textContent = data.error;
-      btn.disabled = false; btn.textContent = 'Extract ->';
+      statusEl.textContent = 'Could not parse response, please try again.';
+      btn.disabled = false; btn.textContent = 'Extract Key Details';
       return;
     }
 
@@ -518,14 +513,14 @@ function fetchJobUrl() {
     if (data.highlights) document.getElementById('cl-jd').value = data.highlights;
 
     statusEl.style.color = 'var(--green)';
-    statusEl.textContent = 'Job details extracted! Review and generate your letter.';
-    btn.disabled = false; btn.textContent = 'Extract ->';
-    setTimeout(function() { statusEl.style.display = 'none'; }, 4000);
+    statusEl.textContent = 'Done! Job details filled automatically.';
+    btn.disabled = false; btn.textContent = 'Extract Key Details';
+    setTimeout(function() { statusEl.textContent = ''; }, 4000);
   })
   .catch(function(err) {
     statusEl.style.color = 'var(--red)';
-    statusEl.textContent = 'Connection error. Please paste the job description manually.';
-    btn.disabled = false; btn.textContent = 'Extract ->';
+    statusEl.textContent = 'Connection error, please try again.';
+    btn.disabled = false; btn.textContent = 'Extract Key Details';
   });
 }
 
